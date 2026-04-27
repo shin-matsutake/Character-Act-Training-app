@@ -1,0 +1,536 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<title>音声キャラアプリ</title>
+
+
+<style>
+body {
+  font-: sfamilyans-serif;
+  margin: 0;
+  background: linear-gradient(135deg,#667eea,#764ba2);
+  color: white;
+  text-align: center;
+}
+.container {
+  max-width: 500px;
+  margin: auto;
+  padding: 20px;
+}
+.hidden { display: none; }
+.card {
+  background: white;
+  color: black;
+  padding: 15px;
+  border-radius: 15px;
+  margin-top: 10px;
+}
+img { width: 100%; border-radius: 10px; margin-top:10px;}
+button {
+  width: 100%;
+  padding: 12px;
+  margin: 5px 0;
+  border: none;
+  border-radius: 10px;
+  background: orange;
+  color: white;
+  font-weight: bold;
+}
+.icon-btn {
+  font-size: 14px;
+  padding: 2px 6px;
+  margin-left: 5px;
+  background: none;
+  color: #333;
+  box-shadow: none;
+  width: auto;          /* ← これ重要（横いっぱい防ぐ） */
+}
+</style>
+</head>
+
+<body>
+<div class="container">
+
+<!-- メニュー -->
+<div id="menu">
+<h2>モード選択</h2>
+<button onclick="startMode('prac')">Prac</button>
+<button onclick="startMode('quiz')">Quiz</button>
+<button onclick="startMode('aud')">Aud</button>
+</div>
+
+<!-- 条件選択 -->
+<div id="select" class="hidden">
+<h3>条件選択</h3>
+
+<div>
+<label><input type="checkbox" value="Man" class="A">Man</label>
+<label><input type="checkbox" value="Woman" class="A">Woman</label>
+<label><input type="checkbox" value="child" class="A">child</label>
+<label><input type="checkbox" value="Chara" class="A">Chara</label>
+</div>
+
+<div>
+<label><input type="checkbox" value="アニメ・ゲーム" class="B">アニメ・ゲーム</label>
+<label><input type="checkbox" value="実写" class="B">実写</label>
+</div>
+
+<p>枚数（quiz/aud用）</p>
+<input type="number" id="count" value="5" min="3" max="9">
+
+<button onclick="goNext()">決定</button>
+<button onclick="backMenu()">戻る</button>
+</div>
+
+<!-- 表示 -->
+<div id="view" class="hidden"></div>
+
+</div>
+
+<script>
+
+function toggleDetail(id, btn){
+  const el = document.getElementById(id);
+
+  if(el.style.display === "none"){
+    el.style.display = "block";
+    btn.textContent = "▲";
+  }else{
+    el.style.display = "none";
+    btn.textContent = "▼";
+  }
+}
+// ★ここを書き換える
+const API_URL = "https://opensheet.elk.sh/1-mvg2kG1i5tG0-nxLL4UgJGbEk1_v7mWWkVUfJdHrJ8/VAGAME";
+
+let data=[];
+let state={
+  mode:null,
+  filtered:[],
+  current:null,
+  audio:null,
+  choices:[]
+};
+
+// データ取得
+fetch(API_URL)
+  .then(r=>r.json())
+  .then(j=>{
+    data=j;
+    console.log("データ取得OK", data);
+  })
+  .catch(e=>{
+    alert("データ取得失敗");
+    console.error(e);
+  });
+
+// モード選択
+function startMode(m){
+  state.mode=m;
+  show("select");
+}
+
+// 条件決定
+function goNext(){
+  const A=[...document.querySelectorAll(".A:checked")].map(e=>e.value);
+  const B=[...document.querySelectorAll(".B:checked")].map(e=>e.value);
+
+  if(A.length===0 || B.length===0){
+    alert("ジャンルは必ず一つ以上選択してください");
+    return;
+  }
+
+  state.filtered = data.filter(d => {
+  const genders = (d.gender || "").split("|");
+  const categories = (d.category || "").split("|");
+
+  return genders.some(g => A.includes(g)) &&
+         categories.some(c => B.includes(c));
+});
+
+  if(state.filtered.length===0){
+    alert("該当データなし");
+    return;
+  }
+
+  if(state.mode==="prac") prac();
+  if(state.mode==="quiz") quizStart();
+  if(state.mode==="aud") audStart();
+}
+
+// ランダム
+function random(arr){
+  return arr[Math.floor(Math.random()*arr.length)];
+}
+
+// ===== Prac =====
+function prac(){
+  const c = random(state.filtered);
+  c._age = randomLine(c.age);
+  c._line = randomLine(c.line);
+  const safe = c.name.replace(/\s/g, "_");
+  state.current = c;
+
+  document.getElementById("view").innerHTML = `
+  <div class="card">
+    <img src="${(c.image || '').trim()}">
+
+    <h3>
+      名前: ${c.name}
+      <button class="icon-btn" onclick="toggleDetail('char_${safe}', this)">▼</button>
+    </h3>
+
+    <div id="char_${safe}" style="display:none;">
+      <p>${c.char_desc}</p>
+    </div>
+
+    <p>年齢: ${c._age}</p>
+
+    <p>
+      作品名: ${c.work}
+      <button class="icon-btn" onclick="toggleDetail('work_${safe}', this)">▼</button>
+    </p>
+
+    <div id="work_${safe}" style="display:none;">
+      <p>${c.work_desc}</p>
+    </div>
+
+<p><b>セリフ:</b></p>
+<p style="font-size:18px; font-weight:bold;">「${c._line}」</p>
+
+    <button onclick="startRec()">録音</button>
+    <button onclick="stopRec()">停止</button>
+    <button onclick="prac()">変更</button>
+    <button onclick="finish()">完了</button>
+    <button onclick="backMenu()">戻る</button>
+
+  </div>
+  `;
+
+  show("view");
+}
+
+
+// ===== Quiz =====
+function quizStart(){
+  const c = random(state.filtered); // ← 変更
+  c._age = randomLine(c.age);
+  c._line = randomLine(c.line);
+  state.current = c;                // ← 追加
+
+  const id = Math.random().toString(36).slice(2);
+
+  let html = `
+  <div class="card">
+
+    <img src="${(c.image||'').trim()}">
+
+    <h3>
+      ${c.name}
+      <button class="icon-btn"
+        onclick="toggleDetail('char_q_${id}', this)">
+        ▼
+      </button>
+    </h3>
+
+    <p>年齢: ${c._age}</p>
+
+    <p>
+      ${c.work}
+      <button class="icon-btn"
+        onclick="toggleDetail('work_q_${id}', this)">
+        ▼
+      </button>
+    </p>
+
+    <div id="char_q_${id}" style="display:none;">
+      <p>${c.char_desc}</p>
+    </div>
+
+    <div id="work_q_${id}" style="display:none;">
+      <p>${c.work_desc}</p>
+    </div>
+
+    <p><b>セリフ:</b> ${c._line}</p>
+
+  </div>
+
+  <button onclick="startRec()">録音</button>
+  <button onclick="stopRec()">停止</button>
+  <button onclick="quizQ()">完了</button>
+  <button onclick="backMenu()">戻る</button>
+  `;
+
+  document.getElementById("view").innerHTML = html;
+  show("view");
+}
+
+function quizQ(){
+  let html = "<h3>どのキャラクター？</h3>";
+
+  // ===== 選択肢生成（絶対必要：消さない）=====
+  let count = Number(document.getElementById("count").value) || 5;
+
+  let others = state.filtered.filter(d => d !== state.current);
+  let list = shuffle(others).slice(0, count - 1);
+
+  state.choices = shuffle([...list, state.current]);
+
+  // ===== 表示部分 =====
+  state.choices.forEach(c=>{
+    const id = Math.random().toString(36).slice(2);
+
+    html += `
+    <div class="card" onclick="answer('${c.name}')">
+
+      <img src="${(c.image||'').trim()}">
+
+      <h4>
+        ${c.name}
+        <button class="icon-btn"
+          onclick="event.stopPropagation(); toggleDetail('desc_${id}', this)">
+          ▼
+        </button>
+      </h4>
+
+      <p>年齢: ${c._age}</p>
+
+      <div id="desc_${id}" style="display:none;">
+        <p style="font-size:12px;">
+          ${c.char_desc}
+        </p>
+      </div>
+
+    </div>
+    `;
+  });
+
+  // ===== ボタン =====
+  html += `
+  <div style="text-align:center; margin-top:20px;">
+    <button onclick="goBack()">戻る</button>
+  </div>
+  `;
+
+document.getElementById("view").innerHTML = html;
+show("view"); // ← ★追加
+}
+function answer(name){
+  let res = name===state.current.name ? "正解" : "不正解";
+
+  const correct = state.current;
+  const selected = state.choices.find(c=>c.name===name);
+
+  const id1 = Math.random().toString(36).slice(2);
+  const id2 = Math.random().toString(36).slice(2);
+
+  document.getElementById("view").innerHTML = `
+  <h2>${res}</h2>
+
+  <div class="card">
+    <p>正解キャラ</p>
+    <img src="${correct.image}">
+
+    <h3>
+      ${correct.name}
+      <button class="icon-btn" onclick="toggleDetail('c_${id1}', this)">▼</button>
+    </h3>
+
+    <p>年齢: ${correct._age}</p>
+
+    <div id="c_${id1}" style="display:none;">
+      <p>${correct.char_desc}</p>
+    </div>
+  </div>
+
+  <div class="card">
+    <p>選択したキャラ</p>
+    <img src="${selected.image}">
+
+    <h3>
+      ${selected.name}
+      <button class="icon-btn" onclick="toggleDetail('s_${id2}', this)">▼</button>
+    </h3>
+
+    <p>年齢: ${selected._age}</p>
+
+    <div id="s_${id2}" style="display:none;">
+      <p>${selected.char_desc}</p>
+    </div>
+  </div>
+
+  <button onclick="play()">音声再生</button>
+  <button onclick="download()">ダウンロード</button>
+  <button onclick="backMenu()">戻る</button>
+  `;
+
+  show("view");
+}
+// ===== Aud =====
+function audStart(){
+  let count = document.getElementById("count").value;
+  let list = shuffle(state.filtered).slice(0, count);
+
+  let html = "<h3>キャラ選択</h3>";
+
+  list.forEach(c=>{
+    // ★ここに入れる（最重要）
+    if(!c._age) c._age = randomLine(c.age);
+    if(!c._line) c._line = randomLine(c.line);
+
+    html+=`
+    <div class="card">
+      <img src="${(c.image||'').trim()}" onclick="audView('${c.name}')">
+      <p>${c.name}</p>
+      <p>年齢: ${c._age}</p>
+    </div>
+    `;
+  });
+
+  html += `
+  <button onclick="backMenu()">戻る</button>
+  `;
+
+  document.getElementById("view").innerHTML = html;
+  show("view");
+}
+
+function audView(name){
+  const c = state.filtered.find(x=>x.name===name);
+
+  state.current = c; // ← ★これを追加（ここが重要）
+
+  const id = Math.random().toString(36).slice(2);
+
+  const html = `
+  <div class="card">
+
+    <img src="${(c.image||'').trim()}">
+
+    <h3>
+      ${c.name}
+      <button class="icon-btn" onclick="toggleDetail('char_${id}', this)">▼</button>
+    </h3>
+
+    <p>年齢: ${c._age}</p>
+
+    <p>
+      ${c.work}
+      <button class="icon-btn" onclick="toggleDetail('work_${id}', this)">▼</button>
+    </p>
+
+    <div id="char_${id}" style="display:none;">
+      <p>${c.char_desc}</p>
+    </div>
+
+    <div id="work_${id}" style="display:none;">
+      <p>${c.work_desc}</p>
+    </div>
+
+    <p><b>セリフ:</b> ${c._line}</p>
+
+  </div>
+
+  <button onclick="startRec()">録音</button>
+  <button onclick="stopRec()">停止</button>
+  <button onclick="goBack()">戻る</button>
+  `;
+
+document.getElementById("view").innerHTML = html;
+show("view"); // ← ★追加
+}
+
+// ===== 共通 =====
+let historyStack = [];
+function finish(){
+  const c = state.current;
+
+  document.getElementById("view").innerHTML = `
+  <div class="card">
+
+    <img src="${(c.image||'').trim()}">
+
+    <h3>${c.name}</h3>
+    <p>年齢: ${c._age}</p>
+    <p>作品: ${c.work}</p>
+
+    <audio controls src="${state.audio ? URL.createObjectURL(state.audio) : ""}"></audio>
+    <br>
+    <button onclick="play()">再生</button>
+    <button onclick="download()">ダウンロード</button>
+
+  </div>
+
+  <button onclick="backMenu()">メニューに戻る</button>
+  `;
+
+  show("view"); // ← 忘れずに
+}
+
+function randomLine(str){
+  return str ? str.split("|")[Math.floor(Math.random()*str.split("|").length)] : "";
+}
+function goBack(){
+  historyStack.pop(); // 今の画面削除
+  const prev = historyStack.pop(); // 1つ前
+
+  if(prev){
+    show(prev);
+  }else{
+    show("menu");
+  }
+}
+function shuffle(arr){
+  return [...arr].sort(()=>0.5-Math.random());
+}
+
+// ===== 録音 =====
+let rec, chunks=[];
+async function startRec(){
+  const s=await navigator.mediaDevices.getUserMedia({audio:true});
+  rec=new MediaRecorder(s);
+  chunks=[];
+  rec.ondataavailable=e=>chunks.push(e.data);
+  rec.onstop=()=>{
+    state.audio=new Blob(chunks,{type:"audio/webm"});
+  };
+  rec.start();
+}
+
+function stopRec(){
+  if(rec) rec.stop();
+}
+
+function play(){
+  if(!state.audio) return alert("録音なし");
+  new Audio(URL.createObjectURL(state.audio)).play();
+}
+
+function download(){
+  if(!state.audio) return;
+  const a=document.createElement("a");
+  a.href=URL.createObjectURL(state.audio);
+  a.download="voice.webm";
+  a.click();
+}
+
+// 画面切替
+function show(id){
+  if(historyStack[historyStack.length - 1] !== id){
+    historyStack.push(id);
+  }
+
+  ["menu","select","view"].forEach(d=>document.getElementById(d).classList.add("hidden"));
+  document.getElementById(id).classList.remove("hidden");
+
+  window.scrollTo(0,0);
+}
+
+function backMenu(){
+  show("menu");
+}
+</script>
+
+</body>
+</html>
