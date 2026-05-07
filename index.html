@@ -85,7 +85,8 @@ button {
 
 <!-- 表示 -->
 <div id="view" class="hidden"></div>
-
+<div id="recStatus" style="margin-top:10px;font-weight:bold;"></div>
+  
 </div>
 
 <script>
@@ -488,6 +489,8 @@ function shuffle(arr){
 // ===== 録音 =====
 let rec, chunks=[];
 async function startRec(){
+  document.getElementById("recStatus").innerHTML =
+    "🔴 録音中...";
   const s=await navigator.mediaDevices.getUserMedia({audio:true});
   rec=new MediaRecorder(s);
   chunks=[];
@@ -499,7 +502,11 @@ async function startRec(){
 }
 
 function stopRec(){
-  if(rec) rec.stop();
+  if(rec){
+    rec.stop();
+    document.getElementById("recStatus").innerHTML =
+      "✅ 録音完了";
+  }
 }
 
 function play(){
