@@ -280,6 +280,8 @@ function quizQ(){
 
   // ===== 表示部分 =====
   state.choices.forEach(c=>{
+    if(!c._age) c._age = randomLine(c.age);
+    if(!c._line) c._line = randomLine(c.line);
     const id = Math.random().toString(36).slice(2);
 
     html += `
