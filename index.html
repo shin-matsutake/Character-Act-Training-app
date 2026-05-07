@@ -269,7 +269,9 @@ function quizStart(){
 
 function quizQ(){
   let html = "<h3>どのキャラクター？</h3>";
-
+<audio controls src="${
+  state.audio ? URL.createObjectURL(state.audio) : ""
+}"></audio>
   // ===== 選択肢生成（絶対必要：消さない）=====
   let count = Number(document.getElementById("count").value) || 5;
 
