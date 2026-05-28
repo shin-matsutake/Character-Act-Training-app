@@ -25,6 +25,9 @@ body {
   border-radius: 15px;
   margin-top: 10px;
 }
+ .desc{
+  white-space: pre-line;
+}
 img { width: 100%; border-radius: 10px; margin-top:10px;}
 button {
   width: 100%;
@@ -183,7 +186,7 @@ function prac(){
     </h3>
 
     <div id="char_${safe}" style="display:none;">
-      <p>${c.char_desc}</p>
+      <p class="desc">${c.char_desc}</p>
     </div>
 
     <p>年齢: ${c._age}</p>
@@ -194,10 +197,10 @@ function prac(){
     </p>
 
     <div id="work_${safe}" style="display:none;">
-      <p>${c.work_desc}</p>
+     <p class="desc">${c.work_desc}</p>
     </div>
 
-<p><b>セリフ:</b></p>
+<p class="desc"><b>セリフ:</b><br>${c._line}</p>
 <p style="font-size:18px; font-weight:bold;">「${c._line}」</p>
 
     <button onclick="startRec()">録音</button>
@@ -246,14 +249,14 @@ function quizStart(){
     </p>
 
     <div id="char_q_${id}" style="display:none;">
-      <p>${c.char_desc}</p>
+      <p class="desc">${c.char_desc}</p>
     </div>
 
     <div id="work_q_${id}" style="display:none;">
-      <p>${c.work_desc}</p>
+      <p class="desc">${c.work_desc}</p>
     </div>
 
-    <p><b>セリフ:</b> ${c._line}</p>
+    <p class="desc"><b>セリフ:</b><br>${c._line}</p>
 
   </div>
 
@@ -429,14 +432,14 @@ function audView(name){
     </p>
 
     <div id="char_${id}" style="display:none;">
-      <p>${c.char_desc}</p>
+      <p class="desc">${c.char_desc}</p>
     </div>
 
     <div id="work_${id}" style="display:none;">
-      <p>${c.work_desc}</p>
+      <p class="desc">${c.work_desc}</p>
     </div>
 
-    <p><b>セリフ:</b> ${c._line}</p>
+   <p class="desc"><b>セリフ:</b><br>${c._line}</p>
 
   </div>
 
